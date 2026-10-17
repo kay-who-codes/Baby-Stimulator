@@ -22,7 +22,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
 <button id="fs" tabindex="-1">Fullscreen</button>
 <script>
 const cv=document.getElementById('c'),ctx=cv.getContext('2d');
-let W,H,DPR=Math.min(devicePixelRatio||1,2);
+let W,H,DPR=0.6;
 function resize(){W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);ctx.fillStyle='#0b0d2a';ctx.fillRect(0,0,W,H)}
 addEventListener('resize',resize);resize();
 
@@ -62,14 +62,14 @@ function heart(x,y,r){
 
 function burst(x,y){
   const h=hue();
-  for(let i=0;i<60;i++){
+  for(let i=0;i<22;i++){
     const a=rnd(0,Math.PI*2),s=rnd(2,11);
     things.push({t:'p',x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,r:rnd(4,13),h:h+rnd(-40,40),life:1,d:rnd(.01,.02),g:.15,shape:Math.floor(rnd(0,3))});
   }
 }
 function ring(x,y){
   const h=hue();
-  for(let i=0;i<3;i++)things.push({t:'r',x,y,r:10-i*25,h:h+i*40,life:1,d:.014,v:9});
+  for(let i=0;i<2;i++)things.push({t:'r',x,y,r:10-i*25,h:h+i*40,life:1,d:.014,v:9});
 }
 function letter(x,y,ch){
   things.push({t:'l',x,y,ch,h:hue(),life:1,d:.008,age:0,rot:rnd(-.3,.3)});
@@ -86,20 +86,23 @@ function shape(x,y){
 }
 function flash(){things.push({t:'b',h:hue(),life:.35,d:.03})}
 
+let lastT=0;
 function trigger(x,y,key,code){
+  const now=performance.now();if(now-lastT<90||things.length>120)return;lastT=now;
   sound(code);
   const fx=[burst,ring,shape,emoji,()=>letter(x,y,key)];
   // always something big, plus a couple random extras
-  const picks=new Set([Math.floor(rnd(0,5)),Math.floor(rnd(0,5))]);
-  picks.add(0);
+  const picks=new Set([Math.floor(rnd(0,5))]);
+  
   picks.forEach(i=>i===4?letter(x,y,key):fx[i](x,y));
   emoji(x,y);
-  if(Math.random()<.5)streak();
-  if(Math.random()<.3)flash();
+  if(Math.random()<.25)streak();
+  if(Math.random()<.12)flash();
   document.getElementById('hint').style.opacity=0;
 }
 
 addEventListener('keydown',e=>{
+  if(e.repeat){e.preventDefault();return}
   e.preventDefault();
   const k=e.key.length===1?e.key.toUpperCase():['★','♥','✿','☺','♪'][e.keyCode%5];
   trigger(rnd(W*.1,W*.9),rnd(H*.15,H*.85),k,e.keyCode||e.key.charCodeAt(0)||1);
@@ -114,7 +117,9 @@ document.getElementById('fs').addEventListener('pointerdown',e=>{
 // gentle idle bubbles
 setInterval(()=>{if(things.length<4){things.push({t:'p',x:rnd(0,W),y:H+10,vx:rnd(-.3,.3),vy:rnd(-2,-1),r:rnd(6,16),h:hue(),life:1,d:.004,g:0,shape:0})}},700);
 
-function frame(){
+let lastF=0;
+function frame(ts){
+  if(ts-lastF<33){requestAnimationFrame(frame);return}lastF=ts;
   // trail fade
   ctx.globalCompositeOperation='source-over';
   ctx.fillStyle='rgba(11,13,42,.22)';ctx.fillRect(0,0,W,H);
@@ -139,7 +144,7 @@ function frame(){
       ctx.save();ctx.translate(o.x,o.y);ctx.rotate(o.rot);ctx.scale(sc,sc);
       ctx.font='900 '+Math.min(W,H)*.45+'px system-ui, sans-serif';
       ctx.textAlign='center';ctx.textBaseline='middle';
-      ctx.lineWidth=14;ctx.strokeStyle='#fff';ctx.strokeText(o.ch,0,0);
+      
       ctx.fillStyle=`hsl(${o.h},95%,58%)`;ctx.fillText(o.ch,0,0);
       ctx.restore();
     }else if(o.t==='e'){
@@ -150,9 +155,9 @@ function frame(){
       ctx.fillText(o.e,0,0);ctx.restore();
     }else if(o.t==='s'){
       o.x+=o.vx;
-      const g=ctx.createLinearGradient(o.x,0,o.x-o.dir*o.len,0);
-      g.addColorStop(0,`hsl(${o.h},100%,65%)`);g.addColorStop(1,`hsla(${o.h+80},100%,65%,0)`);
-      ctx.fillStyle=g;ctx.fillRect(Math.min(o.x,o.x-o.dir*o.len),o.y-12,o.len,24);
+      
+      
+      ctx.fillStyle=`hsl(${o.h},100%,65%)`;ctx.fillRect(Math.min(o.x,o.x-o.dir*o.len),o.y-12,o.len,24);
     }else if(o.t==='f'){
       o.x+=o.vx;o.y+=o.vy;o.rot+=o.vr;
       ctx.save();ctx.translate(o.x,o.y);ctx.rotate(o.rot);
@@ -166,7 +171,7 @@ function frame(){
   ctx.globalAlpha=1;
   requestAnimationFrame(frame);
 }
-frame();
+requestAnimationFrame(frame);
 </script>
 </body>
 </html>
